@@ -253,3 +253,87 @@ And the most expensive thing is repaint, which caused by reflow of layout.
 4. avoid table layout
 5. batch DOM manipulations
 6. debounce window resizing events
+
+exercise 1:
+
+https://codepen.io/stevekinney/full/eVadLB/
+
+Let's say we have a button and a bunch of divs, and when the button get clicked, all the divs will double their sizes:
+
+```html
+<style>
+#boxes {
+  margin: 1em 0;
+}
+
+.box {
+  background-color: black;
+  height: 20px;
+}
+</style>
+<button id="double-sizes">Double Sizes</button>
+<section id="boxes">
+  <div class="box" style="width: 20px;"></div>
+  <div class="box" style="width: 5px;"></div>
+  <div class="box" style="width: 16px;"></div>
+  <div class="box" style="width: 5px;"></div>
+  ....... a lot of more
+</section>
+```
+
+Version 1
+
+```js
+const button = document.getElementById("double-sizes");
+const boxes = Array.from(document.querySelectorAll(".box"));
+
+const doubleWidth = elem => {
+  const width = elem.offsetWidth;
+  elem.style.width = `${width * 2}px`;
+};
+
+button.addEventListener("click", event => {
+  boxes.forEach(doubleWidth);
+});
+```
+
+The above code has very bad performance and we can verify it from the chrome developer tool (the performance section, record). Now let's try to improve it
+
+```js
+...
+
+button.addEventListener("click", event => {
+  const widths = boxes.map(box => box.offsetWidth);
+
+  boxes.forEach((box, idx) => {
+    box.style.width = `${widths[idx] * 2}px`
+  })
+})
+```
+
+If you check it again, it's much more better. So what did we just do?
+
+### 2.2.2 Layout thrashing / forced sychoronous layout
+
+When we read the layout, for example getting its width and height, and violently write its layout multiple times causing document reflows.
+
+```js
+firstElement.classList.toggle("bigger"); // change
+const firstElemWidth = firstElement.width; // calculate
+secondElement.classList.toggle("bigger"); // change
+const secondElemWidth = secondElement.width; // calculate
+```
+
+This is bad, and this is the first thing we look for, the browser knew it was going to have to change the stuff after the first line. Then you went ahead and ask for it for some information about the geometry of another object, so the brwoser stopped your javascript and reflowed the page in order to get your an answer.
+
+And this is why we want to banch all DOM manipulation togather like the following:
+
+```js
+firstElement.classList.toggle("bigger"); // change
+secondElement.classList.toggle("bigger"); // change
+const firstElemWidth = firstElement.width; // calculate
+const secondElemWidth = secondElement.width; // calculate
+```
+
+exercise 2:
+/exercise npm start -> layout fun
