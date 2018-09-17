@@ -213,3 +213,43 @@ For the above two implementation of `sumSqr`, we expect the second one will have
 1. The easiest way to reduce the parse, compile, and execution time is to shipe less code.
 2. Use the **User Timing API** to figure out where is the biggest amount of hurt is.
 3. Consider to use a type system, so that we don't have to worry about the hidden typing system in the javascript engine.
+
+# 2. Rendering performance
+
+## 2.1 DOM and CSSOM
+
+When rendering a page, the browser will go through the html page to create a DOM, and also create a CSSOM in order to deal with the css stuff, such as classes, properties, selectors, animations... So here are some rules to make this generating CSSOM process faster:
+
+1. Reduce the amount of unused css code, the less styles we have, the faster for the browser to check
+
+2. Reduce the number of styles that effects on an element
+3. When possible, try to use class names instead of nested or complex selectors
+4. Try use naming convensions such as BEM
+
+## 2.2 Javascript and render pipeline
+
+Javascript can manipulate the DOM on a page, it can adding and removing the class of an element, it can add styles onto an element, it can add new elements or delete exsisting elements...
+
+There is a pipeline for the browser to do such things:
+
+**javascript -> style/class -> layout -> paint -> composite**
+
+All these steps happening in one single thread on computer and it will result in poor performance. But, we can acutally skip some of these processes.
+
+### 2.2.1 layout and reflows
+
+When ever the geometry of an element changes, the browser has to reflow the page.
+This is the second most expansive step in the entire workflow, and it's an block operation, and it will be noticeable by the user if it happens too often.
+
+Reflow of an element causes the relow of it's parents and children in the tree.
+
+And the most expensive thing is repaint, which caused by reflow of layout.
+
+**How to Avoid reflow**
+
+1. change classes at lowest level of the DOM tree.
+2. avoid repeatly modifing inline styles.
+3. Trade some smoothness for speed if you are doing an animation in javascript
+4. avoid table layout
+5. batch DOM manipulations
+6. debounce window resizing events
