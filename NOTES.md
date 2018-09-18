@@ -337,3 +337,108 @@ const secondElemWidth = secondElement.width; // calculate
 
 exercise 2:
 /exercise npm start -> layout fun
+
+`/moving-boxes/script.js`
+
+```js
+const elements = Array.from(document.querySelectorAll(".element"));
+// bad
+registerNextClick(function(timestamp) {
+  elements.forEach((element, index) => {
+    const top = element.offsetTop;
+    const nextPosition = +(
+      ((Math.sin(top + timestamp / 1000) + 1) / 2) *
+      containerWidth
+    );
+    element.style.transform = `translateX(${nextPosition}px)`;
+  });
+});
+```
+
+This is a very bad code snipet, it has the same thrashing problem, it trying to calculate the style values and set it in the same run. We can use the last trick of **batching operations** to improve it
+
+```js
+// better
+registerNextClick(function(timestamp) {
+  const nextPositions = elements.map(elem => {
+    return +(
+      ((Math.sin(elem.offsetTop + timestamp / 1000) + 1) / 2) *
+      containerWidth
+    );
+  });
+  elements.forEach((element, index) => {
+    element.style.transform = `translateX(${nextPositions[index]}px)`;
+  });
+});
+```
+
+Another approach to reduce layout thrashing is by using a `requestAnimationFrame`, this function is a window function, it basically tells the window, I don't what the stuff happening now, do it later during your next repaint (https://developer.mozilla.org/en-US/docs/Web/API/window/requestAnimationFrame)
+
+```js
+registerNextClick(function(timestamp) {
+  elements.forEach((element, index) => {
+    const top = element.offsetTop;
+    const nextPosition = +(
+      ((Math.sin(top + timestamp / 1000) + 1) / 2) *
+      containerWidth
+    );
+    requestAnimationFrame(() => {
+      element.style.transform = `translateX(${nextPosition}px)`;
+    });
+  });
+});
+```
+
+What if we combine them togather?
+
+```js
+registerNextClick(function(timestamp) {
+  const nextPositions = elements.map(elem => {
+    return +(
+      ((Math.sin(elem.offsetTop + timestamp / 1000) + 1) / 2) *
+      containerWidth
+    );
+  });
+  elements.forEach((element, index) => {
+    requestAnimationFrame(() => {
+      element.style.transform = `translateX(${nextPositions[index]}px)`;
+    });
+  });
+});
+```
+
+The `requestAnimationFrame` solution also has some issues, one issue is it fires so many times and we don't actually need that many times.
+
+## 2.3 FastDom
+
+fastdom is a library on github (https://github.com/wilsonpage/fastdom), it's a pretty small library, and what it does is batching the DOM read and write in togather and use `requestAnimationFrame` to do them once.
+
+```js
+registerNextClick(function(timestamp) {
+  elements.forEach((elem, idx) => {
+    fastdom.measure(() => {
+      var top = elem.offsetTop;
+      const nextPosition =
+        ((Math.sin(top + timestamp / 1000) + 1) / 2) * containerWidth;
+
+      fastdom.mutate(() => {
+        elem.style.transform = `translateX(${nextPosition}px)`;
+      });
+    });
+  });
+});
+```
+
+### 2.3.1 Framework
+
+Do the frameworks handle the layout thrashing issue? Yes, they do, most of the frameworks such as React, Angular and Ember have solved the layout thrashing out of the box, so that we don't have to worry about it anymore. For React, we MUST use the production mode, huge difference.
+
+### 2.3.2 Some Takeaways
+
+1. Don't mix reading and writing layout properties (width, height, color...) togather, you are doing unnecessary works (thrashing).
+2. If you can change the visual appreances of an element by adding css class, do that approach, you are avoid accidental thrashing.
+3. Storing data in memory (store all the heights in an array...) - as opposed to DOM - means we don't have to check the DOM.
+4. Frameworks are generally good but with some overhead.
+5. You don't need a framework to take advantage of this.
+6. You can do bad things even with a framework.
+7. You may not always know wheather you are layout thrashing or not, so measure it use the developer tool.
