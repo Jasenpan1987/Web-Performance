@@ -532,3 +532,93 @@ myLink.addEventListener("mouseenter", () => {
   myLink.style.willChange = "transform";
 });
 ```
+
+But, don't forget to reset it back when finished.
+
+```js
+elem.addEventListener("animationend", () => {
+  elem.style.willChange = "auto";
+});
+```
+
+And for the previous example, we should also add the reset code to the link
+
+```js
+myLink.addEventListener("mouseenter", () => {
+  myLink.style.willChange = "transform";
+});
+
+myLink.addEventListener("mouseleave", () => {
+  myLink.style.willChange = "auto";
+});
+```
+
+**If you try to do the performance recording, turn off the "Paint Flash" on the chrome developer tool (if it was turned on before), otherwise the performance will be horrible.**
+
+exercise
+
+```html
+<div class="box"></div>
+```
+
+```css
+.box {
+  background-color: red;
+  width: 100px;
+  height: 100px;
+}
+```
+
+Let's say we want the box to have animated move to the right for 500px when we click on it, we can do that of course
+
+```js
+const $box = $(".box");
+
+$box.on("click", () => {
+  $box.animate(
+    {
+      marginLeft: "500px"
+    },
+    500
+  );
+});
+```
+
+But, the problem is this solution didn't promote the box into another layer, and it will cause a lot of repaint (check it in your developer tool -> paint flash, there will be a lot of green squares)
+
+Now, let's optimize it, first, we knew that the css `transform` and `transition` property is better, because it doesn't have any intermedian frames, so let's do that
+
+```css
+.box {
+  ... transition: transform 500ms;
+}
+
+.move {
+  transform: translateX(500px);
+}
+```
+
+```js
+const box = document.querySelector(".box");
+box.addEventListener("click", () => {
+  box.classList.toggle("move");
+});
+```
+
+Now let's think about the way we can do better, if we see it, the transform promote the box to its own layer once it starting to move, but what we can do is make this layer promoting earlier, say when the mouse enters the box
+
+```js
+box.addEventListener("mouseenter", () => {
+  box.style.willChange = "transform";
+});
+
+box.addEventListener("mouseleave", () => {
+  box.style.willChange = "auto";
+});
+
+box.addEventListener("transitionend", () => {
+  box.style.willChange = "auto";
+});
+```
+
+Also, since we are good people, we will set it back when either the box animation finishes or the mouse leaves the box.
