@@ -442,3 +442,93 @@ Do the frameworks handle the layout thrashing issue? Yes, they do, most of the f
 5. You don't need a framework to take advantage of this.
 6. You can do bad things even with a framework.
 7. You may not always know wheather you are layout thrashing or not, so measure it use the developer tool.
+
+## 2.4 Painting
+
+Anything you change something other than opacity or css transform... you are triggering a repaint.
+
+Every layout change will cause a repaint, but not all the repaint need layout change (change color).
+
+General speaking, when we have page in a browser, three thread will fire up:
+
+1. UI thread, means the chrome tool bar, address bar, scroll bar... we can't do much about this thread.
+
+2. The renderer thread, or the main thread, this is where all the javascript, parsing HTML and css, styles, calculations, layout, painting happens, there are one of these per thread.
+
+3. The Compositor thread, which draw bitmaps to the screen via GPU.
+
+Our optimization rule is: move the stuff from the renderer to the compositor thread, hand over stuff from CPU to GPU. And how do we achieve this? We manage layers.
+
+**_Disclaimer: Compositing is kind of a hack, the w3c has not officially support it_**
+
+You can't control layers, because it's an optimization that the browser does it for you under the hood. But you can influcen the browser to create the layers for you.
+
+### 2.4.1 What kind of things has its own layer?
+
+- The root object of the page.
+- Objects that have specific css positions.
+- Objects with css transform.
+- Objects that have overflow.
+
+### 2.4.2 the **will-change** property
+
+You can give the browser hints by using the "will-change" property.
+
+```css
+.side-bar {
+  will-change: transform;
+}
+```
+
+It won't work on IE and edge, but won't break them either.
+
+This code basically "suggest" the browser that the `side-bar` should be on its own layer. And we can force it by doing this:
+
+```css
+.side-bar {
+  will-change: transformZ(0);
+}
+```
+
+This is a hack of the hacks, don't use it!!!
+
+#### Layer rules:
+
+1. Managing Layers also has a cost for the browser, so NEVER do this
+
+```css
+* {
+  will-change: transform;
+}
+```
+
+The reason is it make everything its own layer, it will cost way more than the repainting work.
+
+2. The Retina devices is come with layers for free, meaning you don't have to put the `will-change` property to suggest the layer to the browser.
+
+### An layer promoting example
+
+A smart way of promoting layers is tell the browser that the element will change shortly, for example, when we have an `<a>` tag, when the user hovers it, it is very likely that the user will click on it in the next second. So we can hint the browser that the `<a>` tag might need to be its own layer before it actually getting clicked.
+
+```css
+.sidebar {
+  will-change: transform;
+  transition: transform 0.5s;
+}
+
+.sidebar:hover {
+  will-change: transform;
+}
+
+.sidebar.open {
+  transform: tranlate(400px);
+}
+```
+
+We can do it in javascript, and it is more likely to happen in the javascript
+
+```js
+myLink.addEventListener("mouseenter", () => {
+  myLink.style.willChange = "transform";
+});
+```
