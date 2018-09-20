@@ -622,3 +622,111 @@ box.addEventListener("transitionend", () => {
 ```
 
 Also, since we are good people, we will set it back when either the box animation finishes or the mouse leaves the box.
+
+# 3.Latency and Bandwidth
+
+## 3.1 Caching
+
+Caching only affects the "safe" http methods:
+
+- OPTIONS
+- GET
+- HEAD
+
+It doesn't support, because how would it?
+
+- PUT
+- POST
+- DELETE
+- PATCH
+
+### 3.1.1 Three over-simplified possibilities
+
+- Cache missing: there is no local copy in the cache
+- Stale: do a conditional GET, the browser has a copy, but it's too old and no longer valid, go get the new version
+- Valid: we have a thing in cache and its good, so don't even bother talking to the server
+
+### 3.1.2 Cache Strategy
+
+- no-store: the browser gets a new copy every time
+- no-cache: this means you can store a copy, but you can't use it without checking the server (go to the server to check the version)
+- max-age: tell the browser not bother if whatever asset it has less than a certain number of second old
+- content-addressable-storage: file names like this, `main.521jasdiwuasdw1.js`, has a version number in it, each time we build a new version, we change this file, and each time, we serve the html, this `<script src=...>` is also got updated.
+
+## 3.2 Service worker
+
+- The middle layer sitting between the server and the browser
+- Have control of cache
+- Enable offline mode
+- Manipulate request and response
+- Load stuff behind the scene
+
+## 3.2 Lazy loading
+
+Sometimes the user might not need some stuff in your code, or not right now, so don't ship them to the user, i.e, when user on your home page, he doesn't need the drag and drop file uploader right now.
+
+### 3.2.1 Lazy loading on React
+
+Ideally, each bundle shipped in react app should less than 300kb.
+
+In webpack, we can analyze our bundle by using the `webpack-bundle-analyzer` plugin. The outputted graph can tell you package size.
+
+Let's see the `noted` app, we can see two big chunks: lodash and codemirror. So the next step is to slim them.
+
+After a bit search, it turn out we only use the lodash once for `transform`, we can explicitly import the transform function instead of the entire lodash library.
+
+If we build it again, we can see the size is from 500kb to 450kb. Also, there is a babel plugin (`babel-plugin-lodash`), it does the analyze and only bundle the function you use for lodash.
+
+Now, let's deal with the `codemirror` library. And we knew that the user will never need it if he doesn't edit it. And we can dynamically load it when the user clicks on the "Edit" button.
+
+There is a library for react which does exactly that, called "`react-loadable`" (https://github.com/jamiebuilds/react-loadable), and we can just use that library to do our jobs. First we need to create a loader component, which shows up during the time of when the browser is go and grabing the dynamically loaded bundle. Then, we wrap our component into a loadable component like this:
+
+```js
+import React from "react";
+import Loadable from "react-loadable";
+import Loading from "./Loading";
+
+const LoadableEditor = Loadable({
+  loader: () => import("./Editor"),
+  loading: Loading
+});
+
+export default LoadableEditor;
+```
+
+Now when ever you need to use the `Editor` component, use this `LoableEditor` instead.
+
+Be aware that the `import(...)` syntax is not officially supported in javascript (even es6 and es7), we need to add the `syntax-dynamic-import` plugin in our babelrc file and that's all you need. Now, if you fire up the code, the `codemirror` is gone, and when we click the "Edit" button, the browser will go and grab the `Editor` bundle.
+
+If you see the bundle analyzer, the code bundle now is turned into two bundles, one is your main code bundle and the other one is sort of wrapped Editor bundle.
+
+Note:
+
+- the `import(...)` is not react spacific syntax, its just javascript.
+- react-loadable come with a little bit overhead, so don't use it on every component, use it only when you need it.
+
+Another way of doing it without using the `react-library` is like this:
+
+```js
+// other dependencies except Editor
+class NoteView extends Component {
+  componentDidMount() {
+    import("./Editor");
+  }
+
+  render() {
+    const { title, body, id, match } = this.props;
+    return (
+      <article className={Styles.content}>
+        <NoteHeader title={title} match={match} />
+        <div className={Styles.content__panes}>
+          <Markdown className={Styles.content__pane} source={body} />
+          <Route path="/notes/:id/edit" component={Editor} />
+        </div>
+      </article>
+    );
+  }
+}
+```
+
+This is the preload strategy of dynamic loading, on the NoteView page, we fire off the request for grabing the "Editor" bundle, so that the user will have it when they click the "Edit" button.
