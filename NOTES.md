@@ -730,3 +730,72 @@ class NoteView extends Component {
 ```
 
 This is the preload strategy of dynamic loading, on the NoteView page, we fire off the request for grabing the "Editor" bundle, so that the user will have it when they click the "Edit" button.
+
+# 4. Build Tools
+
+## 4.1 Tools
+
+- `purifycss`: it strip out the css you are not actually using (https://github.com/purifycss/purifycss)
+- `babel`: it has up and down side, you have to pay the "babel tax", which means when it compiles, it creates more code:
+
+```js
+// es5
+function Point(x, y) {
+  this.x = x;
+  this.y = y;
+}
+```
+
+but if we the `class` syntax and transpile it through babel,
+
+```js
+class Point {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+}
+```
+
+the compiled version has more code than the above one, and things like `async` `await` will create pages of extra code. So how to pay less "tax"?
+
+## 4.2 Play with babel
+
+```js
+{
+  "presets": [
+    ["env", {
+      "target": {
+        "browser": ["last 2 versions", "safari > 7"]
+      }
+    }]
+  ]
+}
+```
+
+Figure out the minuim browser support for your project. This will save tones lines of code.
+
+## 4.3 For react:
+
+- `babel-plugin-transform-react-remove-prop-types`:(https://github.com/nkt/babel-plugin-react-remove-prop-types) The proptype does nothing in react code, but it will still generate code, and shipped with your bundle.
+- `babel-plugin-transform-react-inline-elements`: (https://babeljs.io/docs/en/6.26.3/babel-plugin-transform-react-constant-elements) It will do this:
+
+```jsx
+const Hr = () => {
+  return <hr className="hr" />;
+};
+```
+
+to
+
+```jsx
+const _ref = <hr className="hr" />;
+
+const Hr = () => {
+  return _ref;
+};
+```
+
+Why this is good? because each time you do the first one is actually calling a function, but the transformed version is just creates an object for you, it won't call the function again and again, it only use the reference it for the first time it created. It will provide better performance.
+
+- `babel-transform-react-constant-elements`: (https://babeljs.io/docs/en/babel-plugin-transform-react-constant-elements/)
