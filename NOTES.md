@@ -799,3 +799,12 @@ const Hr = () => {
 Why this is good? because each time you do the first one is actually calling a function, but the transformed version is just creates an object for you, it won't call the function again and again, it only use the reference it for the first time it created. It will provide better performance.
 
 - `babel-transform-react-constant-elements`: (https://babeljs.io/docs/en/babel-plugin-transform-react-constant-elements/)
+
+# 5. Wrap up
+
+- Use production code in your production enviourment (especially for React). It has big difference. For react, check the react developer tool icon, if it turns orange, that means you didn't use the production code.
+- Serve image smarter: like medium, you can send the images with very low resolution at the beginning, then when the user sroll to that place, change the images to the ones with the better quality.
+- Web fonts
+- PWA
+
+### Golden Rule: Doing things is slower than not doing things, doing things now is worse than doing things later.
